@@ -3,13 +3,13 @@
 
 /* ====== FUNCIONES GENERALES ====== */
 
-// void mount_memory(char* memory_path);
+void mount_memory(char* memory_path);
 
-// void list_processes();
+void list_processes();
 
-// int processes_slots();
+int processes_slots();
 
-// void list_files(int process_id);
+void list_files(int process_id);
 
 // void frame_bitmap_status();
 
