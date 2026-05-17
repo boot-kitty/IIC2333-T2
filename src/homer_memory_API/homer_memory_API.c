@@ -16,7 +16,6 @@ static char* path;
         return count;
     }
 #endif
-
 /* ====== FUNCIONES GENERALES ====== */
 
 void mount_memory(char* memory_path)
@@ -71,7 +70,7 @@ int processes_slots()
         unsigned char pcb[PCB_SIZE];
         fread(pcb, sizeof(unsigned char), PCB_SIZE, memory);
 
-        // CAMBIO: antes contaba los ocupados, ahora son los libres
+        // Cambié esto, antes contaba los ocupados, ahora son los libres
         if (!(pcb[0] & PROCESS_EXISTS)) 
         {
             count++;
@@ -172,15 +171,131 @@ int format_memory(char* memory_path)
 }
 
 
+
+/* ====== FUNCIONES AUXILIARES PARA PROCESOS ====== */
+static long get_pcb_offset(int slot)
+{
+    return PCB_TABLE_START + slot * PCB_SIZE;
+}
+
+static int find_process_slot(FILE* memory, int process_id)
+{
+    unsigned char pcb[PCB_SIZE];
+
+    fseek(memory, PCB_TABLE_START, SEEK_SET);
+
+    for (int i = 0; i < MAX_PROCESSES; i++)
+    {
+        fread(pcb, sizeof(unsigned char), PCB_SIZE, memory);
+
+        if ((pcb[0] & PROCESS_EXISTS) && pcb[15] == process_id)
+        {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+
+
 /* ====== FUNCIONES PARA PROCESOS ====== */
 
-// int start_process(int process_id, char* process_name);
+int start_process(int process_id, char* process_name)
+{
+    FILE* memory = fopen(path, "rb+");
+
+    if (memory == NULL)
+    {
+        perror("Error al abrir el archivo de memoria");
+        return -1;
+    }
+
+    // Verificar si el PID ya existe
+    if (find_process_slot(memory, process_id) != -1)
+    {
+        fclose(memory);
+        return -1;
+    }
+
+    int free_slot = -1;
+    unsigned char pcb[PCB_SIZE];
+
+    fseek(memory, PCB_TABLE_START, SEEK_SET);
+
+    // Buscar PCB libre
+    for (int i = 0; i < MAX_PROCESSES; i++)
+    {
+        fread(pcb, sizeof(unsigned char), PCB_SIZE, memory);
+
+        if (!(pcb[0] & PROCESS_EXISTS))
+        {
+            free_slot = i;
+            break;
+        }
+    }
+
+    if (free_slot == -1)
+    {
+        fclose(memory);
+        return -1;
+    }
+
+    // Inicializar PCB limpio
+    memset(pcb, 0, PCB_SIZE);
+    pcb[0] = PROCESS_EXISTS;
+    strncpy((char*)&pcb[1], process_name, PROCESS_NAME_SIZE);
+    pcb[15] = process_id;
+
+    fseek(memory, get_pcb_offset(free_slot), SEEK_SET);
+    fwrite(pcb, sizeof(unsigned char), PCB_SIZE, memory);
+
+    fclose(memory);
+
+    return 0;
+}
 
 // int finish_process(int process_id);
 
 // int clear_all_processes();
 
-// int file_table_slots(int process_id);
+int file_table_slots(int process_id)
+{
+    FILE* memory = fopen(path, "rb");
+
+    if (memory == NULL)
+    {
+        perror("Error al abrir el archivo de memoria");
+        return -1;
+    }
+
+    int process_slot = find_process_slot(memory, process_id);
+
+    if (process_slot == -1)
+    {
+        fclose(memory);
+        return -1;
+    }
+
+    unsigned char pcb[PCB_SIZE];
+    fseek(memory, get_pcb_offset(process_slot), SEEK_SET);
+    fread(pcb, sizeof(unsigned char), PCB_SIZE, memory);
+    fclose(memory);
+
+    int free_slots = 0;
+
+    for (int i = 0; i < MAX_FILES; i++)
+    {
+        int file_offset = FILE_TABLE_START + i * FILE_ENTRY_SIZE;
+
+        if (!(pcb[file_offset] & ENTRY_VALID))
+        {
+            free_slots++;
+        }
+    }
+
+    return free_slots;
+}
 
 
 /* ====== FUNCIONES PARA ARCHIVOS ====== */
