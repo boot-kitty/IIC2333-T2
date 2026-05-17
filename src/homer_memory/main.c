@@ -11,7 +11,7 @@ int main(int argc, char const *argv[]) {
 
   printf("Procesos en ejecución:\n");
   list_processes();
-  printf("Slots de procesos: %d\n", processes_slots());
+  printf("Slots de procesos disponibles: %d\n", processes_slots());
 
   printf("\nArchivos del proceso con ID 198:\n");
   list_files(198);

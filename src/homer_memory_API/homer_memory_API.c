@@ -2,11 +2,13 @@
 
 static char* path;
 
+/* ====== FUNCIONES AUXILIARES ====== */
+
 // https://www.reddit.com/r/C_Programming/comments/jpt7dw/what_is_the_proper_way_to_count_bits_which_are/
 #if defined(__GNUC__) || defined(__clang__)
     int count_set_bits_64(uint64_t n) {
         return __builtin_popcountll(n);
-}
+    }
 #else
     int count_set_bits_64(uint64_t n) {  // Brian Kernighan's algorithm
         int count = 0;
@@ -16,6 +18,31 @@ static char* path;
         return count;
     }
 #endif
+
+static long get_pcb_offset(int slot)
+{
+    return PCB_TABLE_START + slot * PCB_SIZE;
+}
+
+static int find_process_slot(FILE* memory, int process_id)
+{
+    unsigned char pcb[PCB_SIZE];
+
+    fseek(memory, PCB_TABLE_START, SEEK_SET);
+
+    for (int i = 0; i < MAX_PROCESSES; i++)
+    {
+        fread(pcb, sizeof(unsigned char), PCB_SIZE, memory);
+
+        if ((pcb[0] & PROCESS_EXISTS) && pcb[15] == process_id)
+        {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
 /* ====== FUNCIONES GENERALES ====== */
 
 void mount_memory(char* memory_path)
@@ -34,7 +61,6 @@ void list_processes()
     // Leer la tabla de procesos
     fseek(memory, PCB_TABLE_START, SEEK_SET);
 
-    // CAMBIO: usar MAX_PROCESSES en vez de cálculo manual
     for (int i = 0; i < MAX_PROCESSES; i++) 
     {
         unsigned char pcb[PCB_SIZE];
@@ -65,12 +91,11 @@ int processes_slots()
     
     int count = 0;
     fseek(memory, PCB_TABLE_START, SEEK_SET);
-    for (int i = 0; i < PCB_TABLE_SIZE / PCB_SIZE; i++) 
+    for (int i = 0; i < MAX_PROCESSES; i++) 
     {
         unsigned char pcb[PCB_SIZE];
         fread(pcb, sizeof(unsigned char), PCB_SIZE, memory);
 
-        // Cambié esto, antes contaba los ocupados, ahora son los libres
         if (!(pcb[0] & PROCESS_EXISTS)) 
         {
             count++;
@@ -89,25 +114,17 @@ void list_files(int process_id) {
     }
     
     // Buscar el PCB del proceso
-    fseek(memory, PCB_TABLE_START, SEEK_SET);
-    unsigned char pcb[PCB_SIZE];
-    bool found = false;
-    for (int i = 0; i < PCB_TABLE_SIZE / PCB_SIZE; i++) 
-    {
-        fread(pcb, sizeof(unsigned char), PCB_SIZE, memory);
-        if ((pcb[0] & PROCESS_EXISTS) && pcb[15] == process_id) 
-        {
-            found = true;
-            break;
-        }
-    }
-    fclose(memory);
-    
-    if (!found) 
+    int process_slot = find_process_slot(memory, process_id);
+    if (process_slot == -1)
     {
         printf("Proceso con ID %d no encontrado.\n", process_id);
+        fclose(memory);
         return;
     }
+    unsigned char pcb[PCB_SIZE];
+    fseek(memory, get_pcb_offset(process_slot), SEEK_SET);
+    fread(pcb, sizeof(unsigned char), PCB_SIZE, memory);
+    fclose(memory);
     
     // Leer la tabla de archivos del proceso
     // [valid][name(14B)][size(5B)][v_addr(4B)]
@@ -169,35 +186,6 @@ int format_memory(char* memory_path)
     fclose(memory);
     return 0;
 }
-
-
-
-/* ====== FUNCIONES AUXILIARES PARA PROCESOS ====== */
-static long get_pcb_offset(int slot)
-{
-    return PCB_TABLE_START + slot * PCB_SIZE;
-}
-
-static int find_process_slot(FILE* memory, int process_id)
-{
-    unsigned char pcb[PCB_SIZE];
-
-    fseek(memory, PCB_TABLE_START, SEEK_SET);
-
-    for (int i = 0; i < MAX_PROCESSES; i++)
-    {
-        fread(pcb, sizeof(unsigned char), PCB_SIZE, memory);
-
-        if ((pcb[0] & PROCESS_EXISTS) && pcb[15] == process_id)
-        {
-            return i;
-        }
-    }
-
-    return -1;
-}
-
-
 
 /* ====== FUNCIONES PARA PROCESOS ====== */
 
