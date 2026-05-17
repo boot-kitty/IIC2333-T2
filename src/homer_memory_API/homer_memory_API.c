@@ -24,7 +24,8 @@ void mount_memory(char* memory_path)
     path = memory_path;
 }
 
-void list_processes() {
+void list_processes() 
+{
     FILE* memory = fopen(path, "rb");
     if (memory == NULL) {
         perror("Error al abrir el archivo de memoria");
@@ -33,11 +34,16 @@ void list_processes() {
     
     // Leer la tabla de procesos
     fseek(memory, PCB_TABLE_START, SEEK_SET);
-    for (int i = 0; i < PCB_TABLE_SIZE / PCB_SIZE; i++) {
+
+    // CAMBIO: usar MAX_PROCESSES en vez de cálculo manual
+    for (int i = 0; i < MAX_PROCESSES; i++) 
+    {
         unsigned char pcb[PCB_SIZE];
-        fread(pcb, sizeof(unsigned char), PCB_SIZE, memory);
-        
-        if (pcb[0] & PROCESS_EXISTS) {
+
+        fread(pcb,sizeof(unsigned char), PCB_SIZE, memory);
+
+        if (pcb[0] & PROCESS_EXISTS) 
+        {
             char process_name[PROCESS_NAME_SIZE + 1];
             memcpy(process_name, &pcb[1], PROCESS_NAME_SIZE);
             process_name[PROCESS_NAME_SIZE] = '\0';
@@ -45,22 +51,29 @@ void list_processes() {
             printf("%d\t%s\n", process_id, process_name);
         }
     }
+
     fclose(memory);
 }
 
-int processes_slots() {
+int processes_slots() 
+{
     FILE* memory = fopen(path, "rb");
-    if (memory == NULL) {
+    if (memory == NULL) 
+    {
         perror("Error al abrir el archivo de memoria");
         return -1;
     }
     
     int count = 0;
     fseek(memory, PCB_TABLE_START, SEEK_SET);
-    for (int i = 0; i < PCB_TABLE_SIZE / PCB_SIZE; i++) {
+    for (int i = 0; i < PCB_TABLE_SIZE / PCB_SIZE; i++) 
+    {
         unsigned char pcb[PCB_SIZE];
         fread(pcb, sizeof(unsigned char), PCB_SIZE, memory);
-        if (pcb[0] & PROCESS_EXISTS) {
+
+        // CAMBIO: antes contaba los ocupados, ahora son los libres
+        if (!(pcb[0] & PROCESS_EXISTS)) 
+        {
             count++;
         }
     }
@@ -70,7 +83,8 @@ int processes_slots() {
 
 void list_files(int process_id) {
     FILE* memory = fopen(path, "rb");
-    if (memory == NULL) {
+    if (memory == NULL) 
+    {
         perror("Error al abrir el archivo de memoria");
         return;
     }
@@ -79,33 +93,40 @@ void list_files(int process_id) {
     fseek(memory, PCB_TABLE_START, SEEK_SET);
     unsigned char pcb[PCB_SIZE];
     bool found = false;
-    for (int i = 0; i < PCB_TABLE_SIZE / PCB_SIZE; i++) {
+    for (int i = 0; i < PCB_TABLE_SIZE / PCB_SIZE; i++) 
+    {
         fread(pcb, sizeof(unsigned char), PCB_SIZE, memory);
-        if ((pcb[0] & PROCESS_EXISTS) && pcb[15] == process_id) {
+        if ((pcb[0] & PROCESS_EXISTS) && pcb[15] == process_id) 
+        {
             found = true;
             break;
         }
     }
     fclose(memory);
     
-    if (!found) {
+    if (!found) 
+    {
         printf("Proceso con ID %d no encontrado.\n", process_id);
         return;
     }
     
     // Leer la tabla de archivos del proceso
     // [valid][name(14B)][size(5B)][v_addr(4B)]
-    for (int j = 0; j < MAX_FILES; j++) {
+    for (int j = 0; j < MAX_FILES; j++) 
+    {
         int file_entry_offset = FILE_TABLE_START + j * FILE_ENTRY_SIZE;
-        if (pcb[file_entry_offset] & ENTRY_VALID) {
+        if (pcb[file_entry_offset] & ENTRY_VALID) 
+        {
             char file_name[FILE_NAME_SIZE + 1];
             unsigned long size = 0;
             unsigned int v_addr;
             memcpy(file_name, &pcb[file_entry_offset + 1], FILE_NAME_SIZE);
             file_name[FILE_NAME_SIZE] = '\0';
+
             memcpy(&size, &pcb[file_entry_offset + 1 + FILE_NAME_SIZE], 5);
             memcpy(&v_addr, &pcb[file_entry_offset + 1 + FILE_NAME_SIZE + 5], 4);
             int vpn = v_addr >> 15;
+
             // print VPN[hex] FILE_SIZE[dec] V_ADDR[hex] FILE_NAME
             printf("0x%X\t%lu\t0x%X\t%s\n", vpn, size, v_addr, file_name);
         }
@@ -113,9 +134,11 @@ void list_files(int process_id) {
     
 }
 
-void frame_bitmap_status() {
+void frame_bitmap_status() 
+{
     FILE* memory = fopen(path, "rb");
-    if (memory == NULL) {
+    if (memory == NULL) 
+    {
         perror("Error al abrir el archivo de memoria");
         return;
     }
@@ -126,15 +149,18 @@ void frame_bitmap_status() {
     fclose(memory);
 
     int used_frames = 0;
-    for (int i = 0; i < BITMAP_SIZE / sizeof(uint64_t); i++) {
+    for (int i = 0; i < BITMAP_SIZE / sizeof(uint64_t); i++) 
+    {
         used_frames += count_set_bits_64(bitmap[i]);
     }
     printf("Frames usados: %d, Frames libres: %d\n", used_frames, TOTAL_FRAMES - used_frames);
 }
 
-int format_memory(char* memory_path) {
+int format_memory(char* memory_path) 
+{
     FILE* memory = fopen(memory_path, "wb");
-    if (memory == NULL) {
+    if (memory == NULL) 
+    {
         perror("Error al crear el archivo de memoria");
         return -1;
     }
