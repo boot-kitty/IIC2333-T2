@@ -1,5 +1,13 @@
 #pragma once
+#include <stdio.h>	// FILE, fopen, fclose, etc.
+#include <stdlib.h> // malloc, calloc, free, etc
+#include <string.h> //para strcmp
+#include <stdint.h>  // uint64_t
+#include <stdbool.h> // bool, true, false
+#include <unistd.h> // ftruncate
 #include "../homer_File/homer_File.h"
+
+int count_set_bits_64(uint64_t n);
 
 /* ====== FUNCIONES GENERALES ====== */
 
@@ -11,9 +19,9 @@ int processes_slots();
 
 void list_files(int process_id);
 
-// void frame_bitmap_status();
+void frame_bitmap_status();
 
-// int format_memory(char* memory path);
+int format_memory(char* memory_path);
 
 
 
