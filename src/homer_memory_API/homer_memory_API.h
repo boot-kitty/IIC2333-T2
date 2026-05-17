@@ -6,6 +6,7 @@
 #include <stdbool.h> // bool, true, false
 #include <unistd.h> // ftruncate
 #include "../homer_File/homer_File.h"
+#include "./global_vars.h"
 
 int count_set_bits_64(uint64_t n);
 
