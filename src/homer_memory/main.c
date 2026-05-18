@@ -19,6 +19,13 @@ int main(int argc, char const *argv[]) {
   printf("\nEstado del bitmap de frames:\n");
   frame_bitmap_status();
 
+  // printf("\nCreando un nuevo proceso con ID 250...\n");
+  // start_process(250, "Proceso250");
+  // printf("Procesos en ejecución:\n");
+  // list_processes();
+  // printf("Slots de procesos disponibles: %d\n", processes_slots());
+
+
   // if (strcmp(memory_path, "memorias/copyfill.bin") == 0) {
   //   printf("\nFormateando memoria...\n");
   //   format_memory(memory_path);

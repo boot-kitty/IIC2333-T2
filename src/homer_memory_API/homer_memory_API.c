@@ -1,4 +1,5 @@
 #include "homer_memory_API.h"
+#include "../homer_File/homer_File.h"
 
 static char* path;
 
@@ -41,6 +42,87 @@ static int find_process_slot(FILE* memory, int process_id)
     }
 
     return -1;
+}
+
+// static uint32_t paddr_rel(uint16_t pfn, uint16_t offset)
+// {
+//     return ((uint32_t)pfn << 15) | offset;
+// }
+
+// static uint64_t paddr_abs(uint32_t paddr)
+// {
+//     return ((uint64_t)DATA_START) + paddr;
+// }
+
+// static uint32_t read_ipt_entry(FILE* memory, int pfn)
+// {
+//     uint8_t bytes[3];
+
+//     long offset = IPT_START + pfn * 3;
+
+//     fseek(memory, offset, SEEK_SET);
+//     fread(bytes, sizeof(uint8_t), 3, memory);
+
+//     return bytes[0]
+//          | (bytes[1] << 8)
+//          | (bytes[2] << 16);
+// }
+
+// static void write_ipt_entry(FILE* memory, int pfn, uint32_t value)
+// {
+//     uint8_t bytes[3];
+
+//     bytes[0] = value & 0xFF;
+//     bytes[1] = (value >> 8) & 0xFF;
+//     bytes[2] = (value >> 16) & 0xFF;
+
+//     long offset = IPT_START + pfn * 3;
+
+//     fseek(memory, offset, SEEK_SET);
+//     fwrite(bytes, sizeof(uint8_t), 3, memory);
+// }
+
+// static int find_pfn(FILE* memory, int process_id, uint16_t vpn)
+// {
+//     for (int pfn = 0; pfn < TOTAL_FRAMES; pfn++)
+//     {
+//         uint32_t entry = read_ipt_entry(memory, pfn);
+//         int valid = entry & 1;
+//         int pid = (entry >> 1) & 0x3FF;
+//         int entry_vpn = (entry >> 11) & 0x1FFF;
+//         if (valid && pid == process_id && entry_vpn == vpn)
+//         {
+//             return pfn;
+//         }
+//     }
+
+//     return -1;
+// }
+
+static int finish_process_by_slot(FILE* memory, int slot)
+{
+    unsigned char pcb[PCB_SIZE];
+    fseek(memory, get_pcb_offset(slot), SEEK_SET);
+    fread(pcb, sizeof(unsigned char), PCB_SIZE, memory);
+
+    if (!(pcb[0] & PROCESS_EXISTS))
+    {
+        return -1;
+    }
+    // int process_id = pcb[15];
+    // Liberar frames asignados al proceso en IPT, y liberar frames en el bitmap
+    // for (int frame = 0; frame < TOTAL_FRAMES; frame++) 
+    // {
+    //     uint32_t entry = read_ipt_entry(memory, frame); // 3 bytes por entrada
+    // }
+    
+    // Invalidar entradas de la tabla de archivos
+
+    // Invalidar PCB
+
+    // Sobreescribir PCB en memoria
+
+    return 0;
 }
 
 /* ====== FUNCIONES GENERALES ====== */
@@ -145,6 +227,11 @@ void list_files(int process_id) {
 
             // print VPN[hex] FILE_SIZE[dec] V_ADDR[hex] FILE_NAME
             printf("0x%X\t%lu\t0x%X\t%s\n", vpn, size, v_addr, file_name);
+            // DEBUG:
+            // uint32_t offset = v_addr & 0x7FFF;  // 0b111 1111 1111 1111
+            // uint64_t paddr = paddr_abs(paddr_rel(vpn, offset));
+            // printf("    Dirección física: 0x%lX\n", paddr);
+            
         }
     }
     
@@ -243,9 +330,65 @@ int start_process(int process_id, char* process_name)
     return 0;
 }
 
-// int finish_process(int process_id);
+int finish_process(int process_id)
+{
+    FILE* memory = fopen(path, "rb+");
 
-// int clear_all_processes();
+    if (memory == NULL)
+    {
+        perror("Error al abrir el archivo de memoria");
+        return -1;
+    }
+
+    int process_slot = find_process_slot(memory, process_id);
+
+    if (process_slot == -1)
+    {
+        fclose(memory);
+        return -1;
+    }
+
+    int result = finish_process_by_slot(memory, process_slot);
+    if (result == 0) {
+        printf("Proceso con ID %d finalizado exitosamente.\n", process_id);
+    } else {
+        fprintf(stderr, "Error al finalizar proceso %d en slot %d\n", process_id, process_slot);
+    }
+    fclose(memory);
+    return result;
+}
+
+int clear_all_processes()
+{
+    FILE* memory = fopen(path, "rb+");
+
+    if (memory == NULL)
+    {
+        perror("Error al abrir el archivo de memoria");
+        return -1;
+    }
+
+    unsigned char pcb[PCB_SIZE];
+    int processes_cleared = 0;
+
+    for (int i = 0; i < MAX_PROCESSES; i++)
+    {
+        fseek(memory, get_pcb_offset(i), SEEK_SET);
+        fread(pcb, sizeof(unsigned char), PCB_SIZE, memory);
+
+        if (pcb[0] & PROCESS_EXISTS)
+        {
+            if (finish_process_by_slot(memory, i) == 0) {
+                printf("Proceso %d en slot %d limpiado exitosamente.\n", pcb[15], i);
+                processes_cleared++;
+            } else {
+                fprintf(stderr, "Error al limpiar proceso %d en slot %d\n", pcb[15], i);
+            }
+        }
+    }
+    fclose(memory);
+    return processes_cleared;
+}
 
 int file_table_slots(int process_id)
 {
@@ -288,7 +431,89 @@ int file_table_slots(int process_id)
 
 /* ====== FUNCIONES PARA ARCHIVOS ====== */
 
-// homerFile* open_file(int process_id, char* file_name, char mode);
+homerFile* open_file(int process_id, char* file_name, char mode)
+{
+    FILE* memory = fopen(path, "rb");
+
+    if (memory == NULL)
+    {
+        perror("Error al abrir memoria");
+        return NULL;
+    }
+
+    int process_slot = find_process_slot(memory, process_id);
+
+    if (process_slot == -1)
+    {
+        fclose(memory);
+        return NULL;
+    }
+
+    unsigned char pcb[PCB_SIZE];
+
+    fseek(memory, get_pcb_offset(process_slot), SEEK_SET);
+    fread(pcb, sizeof(unsigned char), PCB_SIZE, memory);
+    homerFile* file = malloc(sizeof(homerFile));
+
+    if (file == NULL)
+    {
+        fclose(memory);
+        return NULL;
+    }
+
+    memset(file, 0, sizeof(homerFile));
+
+    file->process_id = process_id;
+    file->mode = mode;
+
+    strncpy(file->file_name, file_name, FILE_NAME_SIZE);
+    file->file_name[14] = '\0';
+
+    for (int i = 0; i < MAX_FILES; i++)
+    {
+        int offset = FILE_TABLE_START + i * FILE_ENTRY_SIZE;
+
+        if (!(pcb[offset] & ENTRY_VALID))
+        {
+            continue;
+        }
+
+        char existing_name[15];
+
+        memcpy(existing_name, &pcb[offset + 1], FILE_NAME_SIZE);
+
+        existing_name[14] = '\0';
+
+        if (strcmp(existing_name, file_name) == 0)
+        {
+            // Escritura
+            if (mode == 'w')
+            {
+                free(file);
+                fclose(memory);
+                return NULL;
+            }
+
+            file->exists = true;
+            file->file_slot = i;
+
+            fclose(memory);
+            return file;
+        }
+    }
+
+    fclose(memory);
+
+    // Lectura
+    if (mode == 'r')
+    {
+        free(file);
+        return NULL;
+    }
+
+    // Escritura en archivo nuevo
+    return file;
+}
 
 // int read_file(homerFile* file desc, char* dest);
 
@@ -296,7 +521,13 @@ int file_table_slots(int process_id)
 
 // void delete_file(int process id, char* file name);
 
-// void close_file(homerFile* file_desc);
+void close_file(homerFile* file_desc)
+{
+    if (file_desc != NULL)
+    {
+        free(file_desc);
+    }
+}
 
 
 /*====== BONUS =====*/
