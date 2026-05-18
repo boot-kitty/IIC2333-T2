@@ -27,7 +27,22 @@ int main(int argc, char const *argv[]) {
   printf("\n### Archivos del proceso con ID 10:\n");
   list_files(10);
 
-  printf("\n Deseas formatear la memoria? (y/n): ");
+  finish_process(198);
+  printf("\n### Procesos en ejecución después de finalizar proceso 198:\n");
+  list_processes();
+  printf("\n### Slots de procesos disponibles después de finalizar proceso 198: %d\n", processes_slots());
+  printf("\n### Estado del bitmap de frames después de finalizar proceso 198:\n");
+  frame_bitmap_status();
+
+  printf("\n### Limpiando todos los procesos...\n");
+  clear_all_processes();
+  printf("\n### Procesos en ejecución después de limpiar:\n");
+  list_processes();
+  printf("\n### Slots de procesos disponibles después de limpiar: %d\n", processes_slots());
+  printf("\n### Estado del bitmap de frames después de limpiar:\n");
+  frame_bitmap_status();
+
+  printf("\nDeseas formatear la memoria? (y/n): ");
   char response;
   scanf(" %c", &response);
   if (response == 'y' || response == 'Y') {

@@ -24,8 +24,6 @@ void frame_bitmap_status();
 
 int format_memory(char* memory_path);
 
-
-
 /* ====== FUNCIONES PARA PROCESOS ====== */
 
 int start_process(int process_id, char* process_name);

@@ -54,33 +54,33 @@ static int find_process_slot(FILE* memory, int process_id)
 //     return ((uint64_t)DATA_START) + paddr;
 // }
 
-// static uint32_t read_ipt_entry(FILE* memory, int pfn)
-// {
-//     uint8_t bytes[3];
+static uint32_t read_ipt_entry(FILE* memory, int pfn)
+{
+    uint8_t bytes[3];
 
-//     long offset = IPT_START + pfn * 3;
+    long offset = IPT_START + pfn * 3;
 
-//     fseek(memory, offset, SEEK_SET);
-//     fread(bytes, sizeof(uint8_t), 3, memory);
+    fseek(memory, offset, SEEK_SET);
+    fread(bytes, sizeof(uint8_t), 3, memory);
 
-//     return bytes[0]
-//          | (bytes[1] << 8)
-//          | (bytes[2] << 16);
-// }
+    return bytes[0]
+         | (bytes[1] << 8)
+         | (bytes[2] << 16);
+}
 
-// static void write_ipt_entry(FILE* memory, int pfn, uint32_t value)
-// {
-//     uint8_t bytes[3];
+static void write_ipt_entry(FILE* memory, int pfn, uint32_t value)
+{
+    uint8_t bytes[3];
 
-//     bytes[0] = value & 0xFF;
-//     bytes[1] = (value >> 8) & 0xFF;
-//     bytes[2] = (value >> 16) & 0xFF;
+    bytes[0] = value & 0xFF;
+    bytes[1] = (value >> 8) & 0xFF;
+    bytes[2] = (value >> 16) & 0xFF;
 
-//     long offset = IPT_START + pfn * 3;
+    long offset = IPT_START + pfn * 3;
 
-//     fseek(memory, offset, SEEK_SET);
-//     fwrite(bytes, sizeof(uint8_t), 3, memory);
-// }
+    fseek(memory, offset, SEEK_SET);
+    fwrite(bytes, sizeof(uint8_t), 3, memory);
+}
 
 // static int find_pfn(FILE* memory, int process_id, uint16_t vpn)
 // {
@@ -109,18 +109,41 @@ static int finish_process_by_slot(FILE* memory, int slot)
     {
         return -1;
     }
-    // int process_id = pcb[15];
+    int process_id = pcb[15];
     // Liberar frames asignados al proceso en IPT, y liberar frames en el bitmap
-    // for (int frame = 0; frame < TOTAL_FRAMES; frame++) 
-    // {
-    //     uint32_t entry = read_ipt_entry(memory, frame); // 3 bytes por entrada
-    // }
+    for (int frame = 0; frame < TOTAL_FRAMES; frame++) 
+    {
+        uint32_t entry = read_ipt_entry(memory, frame); // 3 bytes por entrada
+        int valid = entry >> 23;
+        uint8_t pid = (entry >> 13) & 0xFF;
+        if (valid && pid == process_id) {
+            // printf("Liberando frame %d asignado al proceso %d\n", frame, process_id);
+            // Marcar frame como libre en el bitmap
+            long bitmap_byte_pos = BITMAP_START + (frame / 8);
+            uint8_t bitmap_byte;
+            fseek(memory, bitmap_byte_pos, SEEK_SET);
+            fread(&bitmap_byte, sizeof(uint8_t), 1, memory);
+            uint8_t new_bitmap_byte = bitmap_byte;
+            new_bitmap_byte &= ~(1 << (7 - (frame % 8))); // Marcar bit como 0
+            fseek(memory, bitmap_byte_pos, SEEK_SET);
+            fwrite(&new_bitmap_byte, sizeof(uint8_t), 1, memory);
+        }
+        entry &= ~(1 << 23); // Marcar entrada como inválida
+        write_ipt_entry(memory, frame, entry);
+    }
     
     // Invalidar entradas de la tabla de archivos
-
+    for (int i = 0; i < MAX_FILES; i++) 
+    {
+        int file_offset = FILE_TABLE_START + i * FILE_ENTRY_SIZE;
+        pcb[file_offset] &= ~ENTRY_VALID; // Marcar entrada como inválida
+    }
     // Invalidar PCB
+    pcb[0] &= ~PROCESS_EXISTS; // Marcar proceso como inexistente
 
     // Sobreescribir PCB en memoria
+    fseek(memory, get_pcb_offset(slot), SEEK_SET);
+    fwrite(pcb, sizeof(unsigned char), PCB_SIZE, memory);
 
     return 0;
 }
