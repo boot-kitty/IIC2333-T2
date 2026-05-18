@@ -5,3 +5,4 @@
 
 ## Notas al corrector
 - Se implementaron las funciones generales y las de administración de procesos. Para probarlas completamente, se debe usar una memoria con datos inicializados (como la `memfilled.bin` entregada en Canvas), ya que no se logró implementar completamente el manejo de archivos.
+- No se logró implementar correctamente la liberación de frames, por lo que el bitmap de frames no se actualiza al eliminar un proceso. Sin embargo, se invalidan las entradas correspondientes en la IPT y en la tabla de archivos del PCB.
