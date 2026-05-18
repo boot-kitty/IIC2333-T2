@@ -9,37 +9,43 @@ int main(int argc, char const *argv[]) {
   }
   mount_memory(memory_path);
 
-  printf("Procesos en ejecución:\n");
+  printf("### Procesos en ejecución:\n");
   list_processes();
-  printf("Slots de procesos disponibles: %d\n", processes_slots());
-
-  printf("\nArchivos del proceso con ID 198:\n");
+  printf("\n### Slots de procesos disponibles: %d\n", processes_slots());
+  printf("\n### Estado del bitmap de frames:\n");
+  frame_bitmap_status();
+  printf("\n### Archivos del proceso con ID 198:\n");
   list_files(198);
 
-  printf("\nEstado del bitmap de frames:\n");
-  frame_bitmap_status();
+  start_process(10, "Proceso10");
+  start_process(20, "Proceso20");
+  printf("\n### Slots de procesos disponibles después de iniciar 2 procesos: %d\n", processes_slots());
 
-  // printf("\nCreando un nuevo proceso con ID 250...\n");
-  // start_process(250, "Proceso250");
-  // printf("Procesos en ejecución:\n");
-  // list_processes();
-  // printf("Slots de procesos disponibles: %d\n", processes_slots());
+  printf("\n### Procesos en ejecución:\n");
+  list_processes();
 
+  printf("\n### Archivos del proceso con ID 10:\n");
+  list_files(10);
 
-  // if (strcmp(memory_path, "memorias/copyfill.bin") == 0) {
-  //   printf("\nFormateando memoria...\n");
-  //   format_memory(memory_path);
-  //   mount_memory(memory_path);
-  //   printf("Procesos en ejecución:\n");
-  //   list_processes();
-  //   printf("Slots de procesos: %d\n", processes_slots());
+  printf("\n Deseas formatear la memoria? (y/n): ");
+  char response;
+  scanf(" %c", &response);
+  if (response == 'y' || response == 'Y') {
+    printf("\nFormateando memoria...\n");
+    format_memory(memory_path);
+    mount_memory(memory_path);
+    printf("Procesos en ejecución:\n");
+    list_processes();
+    printf("Slots de procesos: %d\n", processes_slots());
 
-  //   printf("\nArchivos del proceso con ID 198:\n");
-  //   list_files(198);
+    printf("\nArchivos del proceso con ID 198:\n");
+    list_files(198);
 
-  //   printf("\nEstado del bitmap de frames:\n");
-  //   frame_bitmap_status();
-  // }
+    printf("\nEstado del bitmap de frames:\n");
+    frame_bitmap_status();
+  } else {
+    printf("\nMemoria no formateada. Saliendo...\n");
+  }
 
   return 0;
 }

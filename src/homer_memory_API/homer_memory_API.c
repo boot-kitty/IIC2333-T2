@@ -256,7 +256,7 @@ void frame_bitmap_status()
     {
         used_frames += count_set_bits_64(bitmap[i]);
     }
-    printf("Frames usados: %d, Frames libres: %d\n", used_frames, TOTAL_FRAMES - used_frames);
+    printf("USADOS: %d\tLIBRES: %d\n", used_frames, TOTAL_FRAMES - used_frames);
 }
 
 int format_memory(char* memory_path) 
@@ -289,6 +289,7 @@ int start_process(int process_id, char* process_name)
     // Verificar si el PID ya existe
     if (find_process_slot(memory, process_id) != -1)
     {
+        printf("Error: El proceso con ID %d ya existe.\n", process_id);
         fclose(memory);
         return -1;
     }
@@ -312,6 +313,7 @@ int start_process(int process_id, char* process_name)
 
     if (free_slot == -1)
     {
+        printf("No hay slots de proceso disponibles.\n");
         fclose(memory);
         return -1;
     }
